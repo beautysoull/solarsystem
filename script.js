@@ -263,7 +263,7 @@ function initRingBuffers(gl, innerRadius, outerRadius, segments) {
     };
 }
 
-// Управление камерой
+// Camera and control variables
 let cameraOffsetX = 0;
 let cameraOffsetY = 0;
 let cameraOffsetZ = 0;
@@ -275,7 +275,11 @@ let offsetX = 0; // Смещение камеры по X
 let offsetY = 0; // Смещение камеры по Y
 let lastX = 0, lastY = 0;
 let isPinching = false; // Флаг для жеста "пинч-зум"
+let initialPinchDistance = 0;
+let lastPinchCenter = { x: 0, y: 0 }; // Center of pinch gesture
 let isTouchDragging = false; // Флаг для одиночного касания
+let mouseStartX = 0, mouseStartY = 0;
+let isMouseDragging = false;
 let touchEndTimeout; // Таймер для предотвращения некорректного вращения
 
 // Коэффициент чувствительности для движения камеры
@@ -297,7 +301,7 @@ canvas.addEventListener("wheel", (event) => {
     offsetY += normalizedMouseY * (event.deltaY * 0.01);
 
     // Увеличение/уменьшение зума
-    zoom -= event.deltaY * 0.03;
+    zoom -= event.deltaY * 0.01;
     zoom = Math.max(-1000, Math.min(-3, zoom));
 });
 
@@ -351,52 +355,78 @@ canvas.addEventListener("mousemove", (event) => {
     }
 });
 
-// Сенсорные устройства
+// Mobile Touch Events
 let touchStartX = 0, touchStartY = 0;
 let lastPinchDistance = null;
-
+// Handle touch start
 canvas.addEventListener("touchstart", (event) => {
     if (event.touches.length === 1) {
+        // Single touch: start dragging
         isTouchDragging = true;
         const touch = event.touches[0];
         touchStartX = touch.clientX;
         touchStartY = touch.clientY;
     }
     if (event.touches.length === 2) {
+        // Two fingers: start pinch gesture
         isPinching = true;
         const dx = event.touches[0].clientX - event.touches[1].clientX;
         const dy = event.touches[0].clientY - event.touches[1].clientY;
-        lastPinchDistance = Math.sqrt(dx * dx + dy * dy);
+        initialPinchDistance = Math.sqrt(dx * dx + dy * dy);
+        //lastPinchDistance = Math.sqrt(dx * dx + dy * dy);
+
+        // Calculate the center of the pinch gesture
+        lastPinchCenter.x = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+        lastPinchCenter.y = (event.touches[0].clientY + event.touches[1].clientY) / 2;
     }
     clearTimeout(touchEndTimeout); // Очищаем таймер
 });
 
+// Handle touch move
 canvas.addEventListener("touchmove", (event) => {
     event.preventDefault();
-    if (event.touches.length === 1) {
-        const touch = event.touches[0];
-        // Перемещение одного пальца — вращение камеры
+    if (event.touches.length === 1 && isTouchDragging && !isPinching) {
+        //const touch = event.touches[0];
+        // Single touch: rotate the camera
         const deltaX = touch.clientX - touchStartX;
         const deltaY = touch.clientY - touchStartY;
-        rotationX += deltaY * 0.08;
-        rotationY += deltaX * 0.08;
+        rotationX += deltaY * 0.03;
+        rotationY += deltaX * 0.03;
         touchStartX = touch.clientX;
         touchStartY = touch.clientY;
-    }
-    if (event.touches.length === 2) {
-        // Два пальца — жест масштабирования (пинч-зум)
+    }else if (event.touches.length === 2) {
+        // Two fingers: perform pinch-to-zoom
         const dx = event.touches[0].clientX - event.touches[1].clientX;
         const dy = event.touches[0].clientY - event.touches[1].clientY;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        if (lastPinchDistance) {
-            zoom -= (lastPinchDistance - distance) * 0.01;
-            zoom = Math.max(-100, Math.min(zoom, -3));
+        /*if (lastPinchDistance) {
+            zoom -= (lastPinchDistance - distance) * 0.03;
+            zoom = Math.max(-100, Math.min(zoom, -3));*/
+        
+        // Calculate the center of the pinch gesture
+        const pinchCenter = {
+            x: (event.touches[0].clientX + event.touches[1].clientX) / 2,
+            y: (event.touches[0].clientY + event.touches[1].clientY) / 2,
+        //lastPinchDistance = distance;
         }
-        lastPinchDistance = distance;
-    }
-    event.preventDefault(); // Предотвращаем стандартное поведение браузера
-});
+        // Normalize the pinch center to [-1, 1] range
+        const normalizedX = (pinchCenter.x / canvas.clientWidth) * 2 - 1;
+        const normalizedY = -((pinchCenter.y / canvas.clientHeight) * 2 - 1);
+        // Adjust camera offset based on zoom change
+        const zoomDelta = (initialPinchDistance - currentPinchDistance) * 0.05;
+        offsetX += normalizedX * zoomDelta;
+        offsetY += normalizedY * zoomDelta;
 
+        // Update zoom
+        zoom -= zoomDelta;
+
+        // Update initial pinch distance for next movement
+        initialPinchDistance = currentPinchDistance;
+        lastPinchCenter = pinchCenter;
+    }
+    event.preventDefault(); // Prevent default behavior
+});
+// Handle touch end
 canvas.addEventListener("touchend", () => {
     if (event.touches.length === 0) {
         isPinching = false; // Завершаем пинч-зум
@@ -405,7 +435,7 @@ canvas.addEventListener("touchend", () => {
         // Устанавливаем таймер перед включением вращения
         touchEndTimeout = setTimeout(() => {
             isTouchDragging = true;
-        }, 500); // Задержка в 200 мс
+        }, 200); // Задержка в 200 мс
     }
     //lastPinchDistance = null;
 });
