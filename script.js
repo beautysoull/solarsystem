@@ -297,7 +297,7 @@ canvas.addEventListener("wheel", (event) => {
     offsetY += normalizedMouseY * (event.deltaY * 0.01);
 
     // Увеличение/уменьшение зума
-    zoom -= event.deltaY * 0.01;
+    zoom -= event.deltaY * 0.03;
     zoom = Math.max(-1000, Math.min(-3, zoom));
 });
 
@@ -378,8 +378,8 @@ canvas.addEventListener("touchmove", (event) => {
         // Перемещение одного пальца — вращение камеры
         const deltaX = touch.clientX - touchStartX;
         const deltaY = touch.clientY - touchStartY;
-        rotationX += deltaY * 0.03;
-        rotationY += deltaX * 0.03;
+        rotationX += deltaY * 0.08;
+        rotationY += deltaX * 0.08;
         touchStartX = touch.clientX;
         touchStartY = touch.clientY;
     }
@@ -405,7 +405,7 @@ canvas.addEventListener("touchend", () => {
         // Устанавливаем таймер перед включением вращения
         touchEndTimeout = setTimeout(() => {
             isTouchDragging = true;
-        }, 200); // Задержка в 200 мс
+        }, 500); // Задержка в 200 мс
     }
     //lastPinchDistance = null;
 });
