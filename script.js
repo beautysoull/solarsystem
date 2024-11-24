@@ -2,11 +2,6 @@
 const canvas = document.getElementById("glCanvas");
 const gl = canvas.getContext("webgl");
 
-// Resize canvas for device resolution
-canvas.width = window.innerWidth * window.devicePixelRatio;
-canvas.height = window.innerHeight * window.devicePixelRatio;
-gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-
 if (!gl) {
     alert("WebGL не поддерживается вашим браузером!");
     throw new Error("WebGL не найден");
@@ -279,8 +274,6 @@ let isDragging = false; // Флаг для проверки, двигает ли
 let offsetX = 0; // Смещение камеры по X
 let offsetY = 0; // Смещение камеры по Y
 let lastX = 0, lastY = 0;
-let isTouchDragging = false;
-let initialPinchDistance = 0;
 
 // Коэффициент чувствительности для движения камеры
 const moveSpeed = 0.5;
@@ -357,61 +350,46 @@ canvas.addEventListener("mousemove", (event) => {
 
 // Сенсорные устройства
 let touchStartX = 0, touchStartY = 0;
+let lastPinchDistance = null;
 
 canvas.addEventListener("touchstart", (event) => {
     if (event.touches.length === 1) {
         const touch = event.touches[0];
-        touchStartX = event.touches[0].clientX;
-        touchStartY = event.touches[0].clientY;
-    }else if (event.touches.length === 2) {
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+    }
+    if (event.touches.length === 2) {
         const dx = event.touches[0].clientX - event.touches[1].clientX;
         const dy = event.touches[0].clientY - event.touches[1].clientY;
-        initialPinchDistance = Math.sqrt(dx * dx + dy * dy);
+        lastPinchDistance = Math.sqrt(dx * dx + dy * dy);
     }
 });
 
 canvas.addEventListener("touchmove", (event) => {
     event.preventDefault();
-    if (event.touches.length === 1 && isTouchDragging) {
-        const deltaX = event.touches[0].clientX - touchStartX;
-        const deltaY = event.touches[0].clientY - touchStartY;
-
+    if (event.touches.length === 1) {
+        const touch = event.touches[0];
+        const deltaX = touch.clientX - touchStartX;
+        const deltaY = touch.clientY - touchStartY;
+        rotationX += deltaY * 0.01;
         rotationY += deltaX * 0.01;
-        rotationX -= deltaY * 0.01;
-
-        touchStartX = event.touches[0].clientX;
-        touchStartY = event.touches[0].clientY;
-    } else if (event.touches.length === 2) {
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+    }
+    if (event.touches.length === 2) {
         const dx = event.touches[0].clientX - event.touches[1].clientX;
         const dy = event.touches[0].clientY - event.touches[1].clientY;
-        const currentPinchDistance = Math.sqrt(dx * dx + dy * dy);
-
-        zoom -= (initialPinchDistance - currentPinchDistance) * 0.05;
-        initialPinchDistance = currentPinchDistance;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (lastPinchDistance) {
+            zoom += (lastPinchDistance - distance) * 0.01;
+            zoom = Math.max(-100, Math.min(zoom, -3));
+        }
+        lastPinchDistance = distance;
     }
-    event.preventDefault();
 });
 
 canvas.addEventListener("touchend", () => {
-    isTouchDragging = false;
-});
-
-document.getElementById("toggleButton").addEventListener("click", () => {
-    isPaused = !isPaused;
-    document.getElementById("toggleButton").textContent = isPaused ? "Start" : "Stop";
-});
-
-// Reset on double tap
-canvas.addEventListener("touchstart", (event) => {
-    if (event.touches.length === 1) {
-        const now = performance.now();
-        if (event.timeStamp - lastTime < 300) { // Double-tap detected
-            rotationX = 0;
-            rotationY = 0;
-            zoom = -20;
-        }
-        lastTime = event.timeStamp;
-    }
+    lastPinchDistance = null;
 });
 
 // Автоматическое изменение размера холста
