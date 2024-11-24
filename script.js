@@ -2,12 +2,6 @@
 const canvas = document.getElementById("glCanvas");
 const gl = canvas.getContext("webgl");
 
-// Resize canvas for device resolution
-canvas.width = window.innerWidth * window.devicePixelRatio;
-canvas.height = window.innerHeight * window.devicePixelRatio;
-gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-
-// Check WebGL support
 if (!gl) {
     alert("WebGL не поддерживается вашим браузером!");
     throw new Error("WebGL не найден");
@@ -16,10 +10,8 @@ if (!gl) {
 // Шейдеры для орбит (белые линии)
 const vsSourceOrbit = `
     attribute vec4 aVertexPosition;
-
     uniform mat4 uModelViewMatrix;
     uniform mat4 uProjectionMatrix;
-
     void main(void) {
         gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
     }
@@ -31,16 +23,13 @@ const fsSourceOrbit = `
     }
 `;
 
-// Шейдеры
+// Шейдеры для объектов
 const vsSource = `
     attribute vec4 aVertexPosition;
     attribute vec2 aTextureCoord;
-
     uniform mat4 uModelViewMatrix;
     uniform mat4 uProjectionMatrix;
-
     varying highp vec2 vTextureCoord;
-
     void main(void) {
         gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
         vTextureCoord = aTextureCoord;
@@ -49,9 +38,7 @@ const vsSource = `
 
 const fsSource = `
     varying highp vec2 vTextureCoord;
-
     uniform sampler2D uSampler;
-
     void main(void) {
         gl_FragColor = texture2D(uSampler, vTextureCoord);
     }
@@ -61,17 +48,14 @@ const fsSource = `
 function initShaderProgram(gl, vsSource, fsSource) {
     const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource);
     const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fsSource);
-
     const shaderProgram = gl.createProgram();
     gl.attachShader(shaderProgram, vertexShader);
     gl.attachShader(shaderProgram, fragmentShader);
     gl.linkProgram(shaderProgram);
-
     if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
         alert("Не удалось инициализировать шейдерную программу: " + gl.getProgramInfoLog(shaderProgram));
         return null;
     }
-
     return shaderProgram;
 }
 
@@ -80,13 +64,11 @@ function loadShader(gl, type, source) {
     const shader = gl.createShader(type);
     gl.shaderSource(shader, source);
     gl.compileShader(shader);
-
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
         alert("Ошибка при компиляции шейдера: " + gl.getShaderInfoLog(shader));
         gl.deleteShader(shader);
         return null;
     }
-
     return shader;
 }
 
@@ -99,8 +81,7 @@ function isPowerOf2(value) {
 function loadTexture(gl, url) {
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
-
-    const pixel = new Uint8Array([255, 255, 255, 255]);
+    const pixel = new Uint8Array([255, 255, 255, 255]);// Пустая текстура
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
 
     const image = new Image();
@@ -190,12 +171,10 @@ function initBuffers(gl, latBands, longBands, radius) {
     const positions = [];
     const textureCoordinates = [];
     const indices = [];
-
     for (let lat = 0; lat <= latBands; ++lat) {
         const theta = (lat * Math.PI) / latBands;
         const sinTheta = Math.sin(theta);
         const cosTheta = Math.cos(theta);
-
         for (let long = 0; long <= longBands; ++long) {
             const phi = (long * 2 * Math.PI) / longBands;
             const sinPhi = Math.sin(phi);
@@ -207,11 +186,12 @@ function initBuffers(gl, latBands, longBands, radius) {
             const u = 1 - long / longBands;
             const v = 1 - lat / latBands;
 
-            positions.push(radius * x, radius * y, radius * z);
-            textureCoordinates.push(u, v);
+            positions.push(radius * cosPhi * sinTheta, radius * cosTheta, radius * sinPhi * sinTheta);
+            textureCoordinates.push(1 - long / longBands, 1 - lat / latBands);
+            //positions.push(radius * x, radius * y, radius * z);
+            //textureCoordinates.push(u, v);
         }
     }
-
     for (let lat = 0; lat < latBands; ++lat) {
         for (let long = 0; long < longBands; ++long) {
             const first = lat * (longBands + 1) + long;
@@ -221,7 +201,6 @@ function initBuffers(gl, latBands, longBands, radius) {
             indices.push(second, second + 1, first + 1);
         }
     }
-
     return {
         position: initBuffer(gl, positions, 3),
         textureCoord: initBuffer(gl, textureCoordinates, 2),
@@ -294,114 +273,10 @@ let rotationY = 0;
 let isDragging = false; // Флаг для проверки, двигает ли пользователь камеру
 let offsetX = 0; // Смещение камеры по X
 let offsetY = 0; // Смещение камеры по Y
-
-// Обработчики сенсорных событий
-let touchStartX = 0, touchStartY = 0;
-let isTouchDragging = false;
-let initialPinchDistance = 0;
-
-// Обработка начала касания
-canvas.addEventListener("touchstart", (event) => {
-    if (event.touches.length === 1) { // Одиночное касание
-        touchStartX = event.touches[0].clientX;
-        touchStartY = event.touches[0].clientY;
-        isTouchDragging = true;
-    } else if (event.touches.length === 2) {
-        const dx = event.touches[0].clientX - event.touches[1].clientX;
-        const dy = event.touches[0].clientY - event.touches[1].clientY;
-        initialPinchDistance = Math.sqrt(dx * dx + dy * dy);
-    }
-});
-
-// Обработка перемещения пальца
-canvas.addEventListener("touchmove", (event) => {
-    if (isTouchDragging && event.touches.length === 1) {
-        const deltaX = event.touches[0].clientX - touchStartX;
-        const deltaY = event.touches[0].clientY - touchStartY;
-
-        // Поворот камеры (аналог перемещения мыши)
-        rotationY += deltaX * 0.03;
-        rotationX -= deltaY * 0.03;
-
-        // Обновляем начальные координаты
-        touchStartX = event.touches[0].clientX;
-        touchStartY = event.touches[0].clientY;
-    } else if (event.touches.length === 2) {
-        const dx = event.touches[0].clientX - event.touches[1].clientX;
-        const dy = event.touches[0].clientY - event.touches[1].clientY;
-        const currentPinchDistance = Math.sqrt(dx * dx + dy * dy);
-
-        zoom += (initialPinchDistance - currentPinchDistance) * 0.05;
-        initialPinchDistance = currentPinchDistance;
-    }
-    event.preventDefault();
-});
-
-// Обработка окончания касания
-canvas.addEventListener("touchend", () => {
-    isTouchDragging = false;
-});
-
-document.getElementById("toggleButton").addEventListener("click", () => {
-    isPaused = !isPaused;
-    document.getElementById("toggleButton").textContent = isPaused ? "Start" : "Stop";
-});
-
-// Reset on double tap
-canvas.addEventListener("touchstart", (event) => {
-    if (event.touches.length === 1) {
-        const now = performance.now();
-        if (event.timeStamp - lastTime < 300) { // Double-tap detected
-            rotationX = 0;
-            rotationY = 0;
-            zoom = -20;
-        }
-        lastTime = event.timeStamp;
-    }
-});
-
-let initialDistance = 0;
-let isPinching = false;
-
-canvas.addEventListener("touchstart", (event) => {
-    if (event.touches.length === 2) {
-        // Начало жеста масштабирования
-        const dx = event.touches[0].clientX - event.touches[1].clientX;
-        const dy = event.touches[0].clientY - event.touches[1].clientY;
-        initialDistance = Math.sqrt(dx * dx + dy * dy);
-        isPinching = true;
-    }
-});
-
-canvas.addEventListener("touchmove", (event) => {
-    if (isPinching && event.touches.length === 2) {
-        // Расчёт текущей дистанции между пальцами
-        const dx = event.touches[0].clientX - event.touches[1].clientX;
-        const dy = event.touches[0].clientY - event.touches[1].clientY;
-        const currentDistance = Math.sqrt(dx * dx + dy * dy);
-
-        // Масштабирование камеры
-        zoom += (initialDistance - currentDistance) * 0.01;
-        zoom = Math.max(-100, Math.min(-3, zoom));
-
-        initialDistance = currentDistance;
-    }
-    event.preventDefault();
-});
-
-canvas.addEventListener("touchend", () => {
-    isPinching = false;
-});
-
-const hammer = new Hammer(canvas);
-
-// Двойное нажатие для сброса камеры
-hammer.on("doubletap", () => {
-    rotationX = 0;
-    rotationY = 0;
-    zoom = -3;
-});
-
+let lastX = 0, lastY = 0;
+let isPinching = false; // Флаг для жеста "пинч-зум"
+let isTouchDragging = false; // Флаг для одиночного касания
+let touchEndTimeout; // Таймер для предотвращения некорректного вращения
 
 // Коэффициент чувствительности для движения камеры
 const moveSpeed = 0.5;
@@ -428,7 +303,7 @@ canvas.addEventListener("wheel", (event) => {
 
 // Добавление управления мышью
 let dragging = false;
-let lastX = 0, lastY = 0;
+
 
 // Функция остановки/запуска вращения
 document.getElementById("toggleButton").addEventListener("click", () => {
@@ -476,8 +351,75 @@ canvas.addEventListener("mousemove", (event) => {
     }
 });
 
+// Сенсорные устройства
+let touchStartX = 0, touchStartY = 0;
+let lastPinchDistance = null;
+
+canvas.addEventListener("touchstart", (event) => {
+    if (event.touches.length === 1) {
+        isTouchDragging = true;
+        const touch = event.touches[0];
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+    }
+    if (event.touches.length === 2) {
+        isPinching = true;
+        const dx = event.touches[0].clientX - event.touches[1].clientX;
+        const dy = event.touches[0].clientY - event.touches[1].clientY;
+        lastPinchDistance = Math.sqrt(dx * dx + dy * dy);
+    }
+    clearTimeout(touchEndTimeout); // Очищаем таймер
+});
+
+canvas.addEventListener("touchmove", (event) => {
+    event.preventDefault();
+    if (event.touches.length === 1) {
+        const touch = event.touches[0];
+        // Перемещение одного пальца — вращение камеры
+        const deltaX = touch.clientX - touchStartX;
+        const deltaY = touch.clientY - touchStartY;
+        rotationX += deltaY * 0.03;
+        rotationY += deltaX * 0.03;
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+    }
+    if (event.touches.length === 2) {
+        // Два пальца — жест масштабирования (пинч-зум)
+        const dx = event.touches[0].clientX - event.touches[1].clientX;
+        const dy = event.touches[0].clientY - event.touches[1].clientY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (lastPinchDistance) {
+            zoom -= (lastPinchDistance - distance) * 0.01;
+            zoom = Math.max(-100, Math.min(zoom, -3));
+        }
+        lastPinchDistance = distance;
+    }
+    event.preventDefault(); // Предотвращаем стандартное поведение браузера
+});
+
+canvas.addEventListener("touchend", () => {
+    if (event.touches.length === 0) {
+        isPinching = false; // Завершаем пинч-зум
+        isTouchDragging = false;
+
+        // Устанавливаем таймер перед включением вращения
+        touchEndTimeout = setTimeout(() => {
+            isTouchDragging = true;
+        }, 200); // Задержка в 200 мс
+    }
+    //lastPinchDistance = null;
+});
+
+// Автоматическое изменение размера холста
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+}
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
+
 canvas.addEventListener("contextmenu", (event) => event.preventDefault());
-canvas.addEventListener("touchmove", (event) => event.preventDefault());
 
 // Текстуры для объектов
 const textures = {
