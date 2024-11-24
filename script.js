@@ -274,6 +274,9 @@ let isDragging = false; // Флаг для проверки, двигает ли
 let offsetX = 0; // Смещение камеры по X
 let offsetY = 0; // Смещение камеры по Y
 let lastX = 0, lastY = 0;
+let isPinching = false; // Флаг для жеста "пинч-зум"
+let isTouchDragging = false; // Флаг для одиночного касания
+let touchEndTimeout; // Таймер для предотвращения некорректного вращения
 
 // Коэффициент чувствительности для движения камеры
 const moveSpeed = 0.5;
@@ -354,42 +357,57 @@ let lastPinchDistance = null;
 
 canvas.addEventListener("touchstart", (event) => {
     if (event.touches.length === 1) {
+        isTouchDragging = true;
         const touch = event.touches[0];
         touchStartX = touch.clientX;
         touchStartY = touch.clientY;
     }
     if (event.touches.length === 2) {
+        isPinching = true;
         const dx = event.touches[0].clientX - event.touches[1].clientX;
         const dy = event.touches[0].clientY - event.touches[1].clientY;
         lastPinchDistance = Math.sqrt(dx * dx + dy * dy);
     }
+    clearTimeout(touchEndTimeout); // Очищаем таймер
 });
 
 canvas.addEventListener("touchmove", (event) => {
     event.preventDefault();
     if (event.touches.length === 1) {
         const touch = event.touches[0];
+        // Перемещение одного пальца — вращение камеры
         const deltaX = touch.clientX - touchStartX;
         const deltaY = touch.clientY - touchStartY;
-        rotationX += deltaY * 0.01;
-        rotationY += deltaX * 0.01;
+        rotationX += deltaY * 0.03;
+        rotationY += deltaX * 0.03;
         touchStartX = touch.clientX;
         touchStartY = touch.clientY;
     }
     if (event.touches.length === 2) {
+        // Два пальца — жест масштабирования (пинч-зум)
         const dx = event.touches[0].clientX - event.touches[1].clientX;
         const dy = event.touches[0].clientY - event.touches[1].clientY;
         const distance = Math.sqrt(dx * dx + dy * dy);
         if (lastPinchDistance) {
-            zoom += (lastPinchDistance - distance) * 0.01;
+            zoom -= (lastPinchDistance - distance) * 0.01;
             zoom = Math.max(-100, Math.min(zoom, -3));
         }
         lastPinchDistance = distance;
     }
+    event.preventDefault(); // Предотвращаем стандартное поведение браузера
 });
 
 canvas.addEventListener("touchend", () => {
-    lastPinchDistance = null;
+    if (event.touches.length === 0) {
+        isPinching = false; // Завершаем пинч-зум
+        isTouchDragging = false;
+
+        // Устанавливаем таймер перед включением вращения
+        touchEndTimeout = setTimeout(() => {
+            isTouchDragging = true;
+        }, 200); // Задержка в 200 мс
+    }
+    //lastPinchDistance = null;
 });
 
 // Автоматическое изменение размера холста
