@@ -320,8 +320,8 @@ canvas.addEventListener("touchmove", (event) => {
         const deltaY = event.touches[0].clientY - touchStartY;
 
         // Поворот камеры (аналог перемещения мыши)
-        rotationY -= deltaX * 0.01;
-        rotationX += deltaY * 0.01;
+        rotationY += deltaX * 0.03;
+        rotationX -= deltaY * 0.03;
 
         // Обновляем начальные координаты
         touchStartX = event.touches[0].clientX;
