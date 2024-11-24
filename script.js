@@ -276,10 +276,6 @@ let offsetY = 0; // Смещение камеры по Y
 let lastX = 0, lastY = 0;
 let isPinching = false; // Флаг для жеста "пинч-зум"
 let initialPinchDistance = 0;
-let lastPinchCenter = { x: 0, y: 0 }; // Center of pinch gesture
-let isTouchDragging = false; // Флаг для одиночного касания
-let mouseStartX = 0, mouseStartY = 0;
-let isMouseDragging = false;
 let touchEndTimeout; // Таймер для предотвращения некорректного вращения
 
 // Коэффициент чувствительности для движения камеры
@@ -366,8 +362,7 @@ canvas.addEventListener("touchstart", (event) => {
         const touch = event.touches[0];
         touchStartX = touch.clientX;
         touchStartY = touch.clientY;
-    }
-    if (event.touches.length === 2) {
+    } else if (event.touches.length === 2) {
         // Two fingers: start pinch gesture
         isPinching = true;
         const dx = event.touches[0].clientX - event.touches[1].clientX;
@@ -376,8 +371,8 @@ canvas.addEventListener("touchstart", (event) => {
         //lastPinchDistance = Math.sqrt(dx * dx + dy * dy);
 
         // Calculate the center of the pinch gesture
-        lastPinchCenter.x = (event.touches[0].clientX + event.touches[1].clientX) / 2;
-        lastPinchCenter.y = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+        //lastPinchCenter.x = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+        //lastPinchCenter.y = (event.touches[0].clientY + event.touches[1].clientY) / 2;
     }
     clearTimeout(touchEndTimeout); // Очищаем таймер
 });
@@ -386,7 +381,7 @@ canvas.addEventListener("touchstart", (event) => {
 canvas.addEventListener("touchmove", (event) => {
     event.preventDefault();
     if (event.touches.length === 1 && isTouchDragging && !isPinching) {
-        //const touch = event.touches[0];
+        const touch = event.touches[0];
         // Single touch: rotate the camera
         const deltaX = touch.clientX - touchStartX;
         const deltaY = touch.clientY - touchStartY;
@@ -399,17 +394,17 @@ canvas.addEventListener("touchmove", (event) => {
         const dx = event.touches[0].clientX - event.touches[1].clientX;
         const dy = event.touches[0].clientY - event.touches[1].clientY;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        /*if (lastPinchDistance) {
-            zoom -= (lastPinchDistance - distance) * 0.03;
-            zoom = Math.max(-100, Math.min(zoom, -3));*/
+
+        zoom -= (lastPinchDistance - currentPinchDistance) * 0.03;
+        zoom = Math.max(-100, Math.min(zoom, -3));
         
         // Calculate the center of the pinch gesture
-        const pinchCenter = {
+        /*const pinchCenter = {
             x: (event.touches[0].clientX + event.touches[1].clientX) / 2,
-            y: (event.touches[0].clientY + event.touches[1].clientY) / 2,
+            y: (event.touches[0].clientY + event.touches[1].clientY) / 2,*/
         //lastPinchDistance = distance;
-        }
-        // Normalize the pinch center to [-1, 1] range
+        
+        /*// Normalize the pinch center to [-1, 1] range
         const normalizedX = (pinchCenter.x / canvas.clientWidth) * 2 - 1;
         const normalizedY = -((pinchCenter.y / canvas.clientHeight) * 2 - 1);
         // Adjust camera offset based on zoom change
@@ -418,14 +413,28 @@ canvas.addEventListener("touchmove", (event) => {
         zoom = Math.max(-100, Math.min(-3, zoom)); // Ограничиваем зум
         // Смещение камеры относительно центра жеста
         offsetX += normalizedX * zoomDelta;
-        offsetY += normalizedY * zoomDelta;
+        offsetY += normalizedY * zoomDelta;*/
 
-        // Update initial pinch distance for next movement
+        //Update initial pinch distance for next movement
         initialPinchDistance = currentPinchDistance;
         //lastPinchCenter = pinchCenter;
     }
     event.preventDefault(); // Prevent default behavior
 });
+
+// Reset on double tap
+canvas.addEventListener("touchstart", (event) => {
+    if (event.touches.length === 1) {
+        const now = performance.now();
+        if (event.timeStamp - lastTime < 300) { // Double-tap detected
+            rotationX = 0;
+            rotationY = 0;
+            zoom = -20;
+        }
+        lastTime = event.timeStamp;
+    }
+}); 
+
 // Handle touch end
 canvas.addEventListener("touchend", () => {
     if (event.touches.length === 0) {
