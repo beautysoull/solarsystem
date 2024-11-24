@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Solar system</title>
+    <!-- Подключение библиотеки для работы с матрицами -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/2.8.1/gl-matrix-min.js"></script> 
+    <!-- Подключение CSS -->
+     <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+        <!-- Основной холст для WebGL -->
+         <canvas id="glCanvas" width="2000" height="1000"></canvas>
+        <div id="instructions">
+            <h2>Инструкции:</h2>
+            <p><strong>Левая кнопка мыши:</strong> Двигать камеру вверх/вниз, влево/вправо</p>
+            <p><strong>Правая кнопка мыши:</strong> Двигать камеру вперёд/назад</p>
+            <p><strong>Колесо мыши:</strong> Увеличить/уменьшить масштаб</p>
+        </div>
+        <button id="toggleButton">Stop</button>
+    <!-- Подключение JavaScript -->
+     <script src="script.js"></script>
+</body>
+</html>
