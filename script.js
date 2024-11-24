@@ -413,16 +413,16 @@ canvas.addEventListener("touchmove", (event) => {
         const normalizedX = (pinchCenter.x / canvas.clientWidth) * 2 - 1;
         const normalizedY = -((pinchCenter.y / canvas.clientHeight) * 2 - 1);
         // Adjust camera offset based on zoom change
-        const zoomDelta = (initialPinchDistance - currentPinchDistance) * 0.05;
+        const zoomDelta = (initialPinchDistance - currentPinchDistance) * 0.02;
+        zoom -= zoomDelta;// Update zoom
+        zoom = Math.max(-100, Math.min(-3, zoom)); // Ограничиваем зум
+        // Смещение камеры относительно центра жеста
         offsetX += normalizedX * zoomDelta;
         offsetY += normalizedY * zoomDelta;
 
-        // Update zoom
-        zoom -= zoomDelta;
-
         // Update initial pinch distance for next movement
         initialPinchDistance = currentPinchDistance;
-        lastPinchCenter = pinchCenter;
+        //lastPinchCenter = pinchCenter;
     }
     event.preventDefault(); // Prevent default behavior
 });
